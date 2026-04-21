@@ -1,0 +1,41 @@
+name: Chained E2E
+on:
+  workflow_run:
+    workflows: ['Trigger E2E']
+    types: ['completed']
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download fork info artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: ${{ github.event.workflow_run.id }},
+            });
+            const match = artifacts.data.artifacts.find(a => a.name === 'fork_info');
+            const dl = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: match.id,
+              archive_format: 'zip',
+            });
+            require('fs').writeFileSync('fork_info.zip', Buffer.from(dl.data));
+      - run: unzip fork_info.zip
+      - name: Parse fork context
+        id: ctx
+        run: |
+          echo "repo=$(cat repo_name)" >> $GITHUB_OUTPUT
+          echo "sha=$(cat head_sha)" >> $GITHUB_OUTPUT
+      - name: Checkout fork code (VULNERABLE)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.ctx.outputs.repo }}
+          ref: ${{ steps.ctx.outputs.sha }}
+      - name: Install dependencies (executes postinstall from fork code)
+        env:
+          POC_SECRET: ${{ secrets.POC_SECRET }}
+        run: npm ci
